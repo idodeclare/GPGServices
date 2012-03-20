@@ -36,8 +36,7 @@
     }] retain];
 
 	GPGController* gpgController = [[GPGController gpgController] retain];
-    availableKeys = [[[[gpgController allKeys] filteredSetUsingPredicate:[self validationPredicate]] 
-                      sortedArrayUsingDescriptors:[keyTableView sortDescriptors]] retain];
+    availableKeys = [[[gpgController allKeys] sortedArrayUsingDescriptors:[keyTableView sortDescriptors]] retain];
 	[gpgController release];
 	keysMatchingSearch = [[NSArray alloc] initWithArray:availableKeys];
 
@@ -156,7 +155,14 @@ objectValueForTableColumn:(NSTableColumn *)tableColumn
 		return [NSNumber numberWithInt:i];
 	} else if([iden isEqualToString:@"useKey"]) {
         GPGKey* k = [keysMatchingSearch objectAtIndex:row];
-        return [NSNumber numberWithBool:[self.selectedKeys containsObject:k]];
+        if ([encryptPredicate evaluateWithObject:k]) {
+            return [NSNumber numberWithBool:[self.selectedKeys containsObject:k]];
+        }
+        else {
+            return [NSNumber numberWithBool:NO];
+        }
+    } else if ([iden isEqualToString:@"cantEncrypt"]) {
+        return [GPGServices cantEncryptReason:key];
     }
 
 	return @"";
@@ -171,7 +177,9 @@ objectValueForTableColumn:(NSTableColumn *)tableColumn
     
     if(row < keysMatchingSearch.count) {
         GPGKey* k = [keysMatchingSearch objectAtIndex:row];
-        if([self.selectedKeys containsObject:k])
+        if (![encryptPredicate evaluateWithObject:k])
+            [self.selectedKeys removeObject:k];
+        else if([self.selectedKeys containsObject:k])
             [self.selectedKeys removeObject:k];
         else
             [self.selectedKeys addObject:k];
@@ -270,12 +278,6 @@ objectValueForTableColumn:(NSTableColumn *)tableColumn
         return NO;
     else
         return YES;
-}
-
-#pragma mark Helpers
-
-- (NSPredicate*)validationPredicate {
-    return encryptPredicate;
 }
 
 #pragma mark -

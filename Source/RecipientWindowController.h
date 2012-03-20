@@ -36,7 +36,6 @@
 @property(assign) BOOL encryptForOwnKeyToo;
 @property(assign) BOOL okEnabled;
 
-- (NSPredicate*)validationPredicate;
 - (void)displayItemsMatchingString:(NSString*)s;
 - (NSInteger)runModal;
 - (IBAction)okClicked:(id)sender;

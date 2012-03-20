@@ -1,0 +1,9 @@
+/* 
+  Localizable.strings
+  GPGServices
+*/
+"CantEncrypt" = "Cannot use to encrypt";
+"Revoked" = "Revoked";
+"Expired" = "Expired";
+"Disabled" = "Disabled";
+"Invalid" = "Invalid";

@@ -11,6 +11,8 @@
 #import "Libmacgpg/Libmacgpg.h"
 #import <Growl/Growl.h>
 
+#define localizedAppString(key) [[NSBundle bundleWithIdentifier:@"org.gpgtools.gpgservices"] localizedStringForKey:(key) value:@"" table:@""]
+
 typedef BOOL(^KeyValidatorT)(GPGKey* key);
 
 typedef enum {
@@ -61,6 +63,7 @@ typedef enum {
 #pragma mark -
 #pragma mark Validators
 
++ (NSString *)cantEncryptReason:(GPGKey *)key;
 + (KeyValidatorT)canSignValidator;
 + (KeyValidatorT)canEncryptValidator;
 + (KeyValidatorT)isActiveValidator;

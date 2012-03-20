@@ -132,13 +132,42 @@
 #pragma mark -
 #pragma mark Validators
 
++ (NSString *)cantEncryptReason:(GPGKey *)key {
+
+    NSMutableArray *reasonsForSubkeys = [NSMutableArray arrayWithCapacity:[[key subkeys] count]];
+    for (GPGSubkey *aSubkey in [key subkeys]) {
+        NSMutableArray *reasons = [NSMutableArray array];
+        // in order of decreasing severity
+        if ([aSubkey revoked]) [reasons addObject:localizedAppString(@"Revoked")];
+        if ([aSubkey expired]) [reasons addObject:localizedAppString(@"Expired")];
+        if ([key disabled] || [aSubkey disabled]) [reasons addObject:localizedAppString(@"Disabled")];
+        if ([aSubkey invalid]) [reasons addObject:localizedAppString(@"Invalid")];
+        if (![aSubkey canEncrypt]) [reasons addObject:localizedAppString(@"CantEncrypt")];
+        [reasonsForSubkeys addObject:reasons];
+    }
+    
+    [reasonsForSubkeys sortUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+        if ([obj1 count] > [obj2 count]) return NSOrderedDescending;
+        if ([obj1 count] < [obj2 count]) return NSOrderedAscending;
+        return NSOrderedSame;    
+    }];
+
+    if ([reasonsForSubkeys count]) 
+        return [[reasonsForSubkeys objectAtIndex:0] componentsJoinedByString:@", "];
+
+    return localizedAppString(@"CantEncrypt");
+}
+
 // Shouldn't RecipientWindowController use canEncryptValidator somehow?
 + (KeyValidatorT)canEncryptValidator {
     id block = ^(GPGKey* key) {
         // A subkey can be expired, without the key being, thus making key useless 
         // because it has no other subkey...
         // We don't care about ownerTrust, validity
-        
+
+        if ([key disabled]) 
+            return NO;
+
         for (GPGSubkey *aSubkey in [key subkeys]) {
             if ([aSubkey canEncrypt] && 
                 ![aSubkey expired] && 
@@ -811,7 +840,6 @@
     NSAssert(destination != nil, @"destination can't be nil");
     
     GPGController* ctx = [GPGController gpgController];
-    ctx.verbose = YES;
     NSData* gpgData = nil;
     if(dataProvider != nil)
         gpgData = [[[NSData alloc] initWithData:dataProvider()] autorelease];
