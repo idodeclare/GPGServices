@@ -7,14 +7,12 @@
 //
 
 #import "RecipientWindowController.h"
-#import "GPGServices.h"
-
 #import "GPGKey+utils.h"
+#import "NSSet+FilteredKeys.h"
 
 @interface RecipientWindowController ()
 
 - (void)displayItemsMatchingString:(NSString*)s;
-- (NSPredicate*)validationPredicate;
 - (void)generateContextMenuForTable:(NSTableView *)table;
 - (void)selectHeaderVisibility:(NSMenuItem *)sender;
 
@@ -49,12 +47,8 @@
 
     dataSource = [[KeyChooserDataSource alloc] initWithValidator:[GPGServices canSignValidator]];
 
-    encryptPredicate = [[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
-        return [GPGServices canEncryptValidator]((GPGKey*)evaluatedObject);
-    }] retain];
-
 	GPGController* gpgController = [[GPGController gpgController] retain];
-    availableKeys = [[[[gpgController allKeys] filteredSetUsingPredicate:[self validationPredicate]] 
+    availableKeys = [[[[gpgController allKeys] filteredSetOfKeysUsingValidator:[GPGServices canEncryptValidator]] 
                       sortedArrayUsingDescriptors:[keyTableView sortDescriptors]] retain];
 	[gpgController release];
 	keysMatchingSearch = [[NSArray alloc] initWithArray:availableKeys];
@@ -96,8 +90,6 @@
 	[availableKeys release];
 	[keysMatchingSearch release];
 	
-    [encryptPredicate release];
-    
 	[super dealloc];
 }
 
@@ -206,12 +198,12 @@ objectValueForTableColumn:(NSTableColumn *)tableColumn
 		[keysMatchingSearch release];		
 		keysMatchingSearch = [[NSArray alloc] initWithArray:availableKeys];
 	} else {        
-		NSMutableArray* newFilteredArray = [[NSMutableArray alloc] init];		
-		[availableKeys enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+		NSMutableArray* newFilteredArray = [[NSMutableArray alloc] init];
+		for (id obj in availableKeys) {
             if([[(GPGKey *)obj textForFilter] rangeOfString:searchString options:NSCaseInsensitiveSearch].length > 0) {
                 [newFilteredArray addObject:obj];
 			}
-		}];
+		};
 
 		[keysMatchingSearch release];
 		keysMatchingSearch = newFilteredArray;
@@ -289,12 +281,6 @@ objectValueForTableColumn:(NSTableColumn *)tableColumn
         return NO;
     else
         return YES;
-}
-
-#pragma mark Helpers
-
-- (NSPredicate*)validationPredicate {
-    return encryptPredicate;
 }
 
 #pragma mark -

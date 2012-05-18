@@ -29,7 +29,7 @@
 - (IBAction)okClicked:(id)sender;
 
 //Callback contains all successfully checked files
-- (void)startVerification:(void(^)(NSArray*))callback;
+- (void)startVerification:(SEL)callback;
 
 #pragma mark - Helper Methods
 - (NSString*)searchFileForSignatureFile:(NSString*)file;

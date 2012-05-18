@@ -7,7 +7,12 @@
 //
 
 #import "KeyChooserWindowController.h"
-#import "GPGServices.h"
+
+@interface KeyChooserWindowController ()
+
+- (void)runModalOnMain:(NSMutableArray *)resHolder;
+
+@end
 
 @interface KeyChooserWindowController ()
 

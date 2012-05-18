@@ -8,6 +8,7 @@
 
 #import "KeyChooserDataSource.h"
 #import "GPGServices.h"
+#import "NSArray+FilteredKeys.h"
 
 @implementation KeyChooserDataSource
 
@@ -110,11 +111,7 @@
     NSArray* keys = [[GPGServices myPrivateKeys] allObjects];
 
     if(self.keyValidator) 
-        return [keys filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
-            if([evaluatedObject isKindOfClass:[GPGKey class]])
-                return self.keyValidator((GPGKey*)evaluatedObject);
-            return NO;
-        }]];
+        return [[keys filteredSetOfKeysUsingValidator:self.keyValidator] allObjects];
     else {
         return keys;
     }

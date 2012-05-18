@@ -12,6 +12,12 @@
 
 #import "FileVerificationDataSource.h"
 
+@interface FileVerificationController ()
+
+- (void)doVerification:(NSArray *)args;
+
+@end
+
 @implementation FileVerificationController
 
 @synthesize filesToVerify, verificationQueue;
@@ -55,7 +61,7 @@
 	[NSApp stopModalWithCode:0];
 }
 
-- (void)startVerification:(void(^)(NSArray*))callback {
+- (void)startVerification:(SEL)callback {
     //Load window to setup bindings
     [self performSelectorOnMainThread:@selector(window) withObject:nil waitUntilDone:NO];
     [indicator performSelectorOnMainThread:@selector(startAnimation:) withObject:self waitUntilDone:NO];
@@ -80,77 +86,86 @@
             }
         }
         
-        [verificationQueue addOperationWithBlock:^(void) {
-            NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-            NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
-            
-            NSException* firstException = nil;
-            NSException* secondException = nil;
-            
-            NSArray* sigs = nil;
-          
-            if([fmgr fileExistsAtPath:signedFile] && [fmgr fileExistsAtPath:signatureFile]) {
-                @try {
-                    GPGController* ctx = [GPGController gpgController];
-                    NSData* signatureFileData = [[[NSData alloc] initWithContentsOfFile:signatureFile] autorelease];
-                    NSData* signedFileData = [[[NSData alloc] initWithContentsOfFile:signedFile] autorelease];
-                    sigs = [ctx verifySignature:signatureFileData originalData:signedFileData];
-                } @catch (NSException *exception) {
-                    firstException = exception;
-                    sigs = nil;
-                }
-            }
-
-            //Try to verify the file itself without a detached sig
-            if(sigs == nil || sigs.count == 0) {
-                @try {
-                    GPGController* ctx = [GPGController gpgController];
-                    NSData* signedFileData = [[[NSData alloc] initWithContentsOfFile:serviceFile] autorelease];
-                    sigs = [ctx verifySignedData:signedFileData];
-                } @catch (NSException *exception) {
-                    secondException = exception;
-                    sigs = nil;
-                }
-            }
-
-            if(sigs != nil) {
-                if(sigs.count == 0) {
-                    id verificationResult = nil; //NSString or NSAttributedString
-                    verificationResult = @"Verification FAILED: No signatures found";
-                    
-                    NSColor* bgColor = [NSColor colorWithCalibratedRed:0.8 green:0.0 blue:0.0 alpha:0.7];
-                    
-                    NSRange range = [verificationResult rangeOfString:@"FAILED"];
-                    verificationResult = [[NSMutableAttributedString alloc] 
-                                          initWithString:verificationResult];
-                    
-                    [verificationResult addAttribute:NSFontAttributeName 
-                                               value:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]           
-                                               range:range];
-                    [verificationResult addAttribute:NSBackgroundColorAttributeName 
-                                               value:bgColor
-                                               range:range];
-                    
-                    NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:
-                                            [signedFile lastPathComponent], @"filename",
-                                            verificationResult, @"verificationResult", 
-                                            nil];
-                    [dataSource addResults:result];
-                } else if(sigs.count > 0) {
-                    for(GPGSignature* sig in sigs) {
-                        [dataSource addResultFromSig:sig forFile:signedFile];
-                    }
-                }         
-            } else {
-                [dataSource addResults:[NSDictionary dictionaryWithObjectsAndKeys:
-                                        [signedFile lastPathComponent], @"filename",
-                                        @"No verifiable data found", @"verificationResult",
-                                        nil]];
-            }
-            
-            [pool release];
-        }];
+        [verificationQueue addOperation:[[[NSInvocationOperation alloc] 
+                                          initWithTarget:self 
+                                          selector:@selector(doVerification:) 
+                                          object:[NSArray arrayWithObjects:signedFile, signatureFile, serviceFile, nil]]
+                                         autorelease]];
     }
+}
+
+- (void)doVerification:(NSArray *)args {
+    NSString *signedFile = [args objectAtIndex:0];
+    NSString *signatureFile = [args objectAtIndex:1];
+    NSString *serviceFile = [args objectAtIndex:2];
+
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
+    
+    NSException* firstException = nil;
+    NSException* secondException = nil;
+    
+    NSArray* sigs = nil;
+    
+    if([fmgr fileExistsAtPath:signedFile] && [fmgr fileExistsAtPath:signatureFile]) {
+        @try {
+            GPGController* ctx = [GPGController gpgController];
+            NSData* signatureFileData = [[[NSData alloc] initWithContentsOfFile:signatureFile] autorelease];
+            NSData* signedFileData = [[[NSData alloc] initWithContentsOfFile:signedFile] autorelease];
+            sigs = [ctx verifySignature:signatureFileData originalData:signedFileData];
+        } @catch (NSException *exception) {
+            firstException = exception;
+            sigs = nil;
+        }
+    }
+    
+    //Try to verify the file itself without a detached sig
+    if(sigs == nil || sigs.count == 0) {
+        @try {
+            GPGController* ctx = [GPGController gpgController];
+            NSData* signedFileData = [[[NSData alloc] initWithContentsOfFile:serviceFile] autorelease];
+            sigs = [ctx verifySignedData:signedFileData];
+        } @catch (NSException *exception) {
+            secondException = exception;
+            sigs = nil;
+        }
+    }
+    
+    if(sigs != nil) {
+        if(sigs.count == 0) {
+            id verificationResult = nil; //NSString or NSAttributedString
+            verificationResult = @"Verification FAILED: No signatures found";
+            
+            NSColor* bgColor = [NSColor colorWithCalibratedRed:0.8 green:0.0 blue:0.0 alpha:0.7];
+            
+            NSRange range = [verificationResult rangeOfString:@"FAILED"];
+            verificationResult = [[NSMutableAttributedString alloc] 
+                                  initWithString:verificationResult];            
+            [verificationResult addAttribute:NSFontAttributeName 
+                                       value:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]           
+                                       range:range];
+            [verificationResult addAttribute:NSBackgroundColorAttributeName 
+                                       value:bgColor
+                                       range:range];
+            
+            NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:
+                                    [signedFile lastPathComponent], @"filename",
+                                    verificationResult, @"verificationResult", 
+                                    nil];
+            [dataSource addResults:result];
+        } else if(sigs.count > 0) {
+            for(GPGSignature* sig in sigs) {
+                [dataSource addResultFromSig:sig forFile:signedFile];
+            }
+        }         
+    } else {
+        [dataSource addResults:[NSDictionary dictionaryWithObjectsAndKeys:
+                                [signedFile lastPathComponent], @"filename",
+                                @"No verifiable data found", @"verificationResult",
+                                nil]];
+    }
+    
+    [pool release];
 }
 
 // Who invokes this and what does it do?

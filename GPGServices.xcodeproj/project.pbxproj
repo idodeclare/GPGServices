@@ -30,6 +30,8 @@
 		45DD3DDA1565729000C9A4C1 /* InProgressWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 45DD3DD91565729000C9A4C1 /* InProgressWindowController.m */; };
 		45DD3DDE156579FF00C9A4C1 /* ServiceWorker.m in Sources */ = {isa = PBXBuildFile; fileRef = 45DD3DDD156579FF00C9A4C1 /* ServiceWorker.m */; };
 		45DD3DE115657C4900C9A4C1 /* ServiceWrappedOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = 45DD3DE015657C4900C9A4C1 /* ServiceWrappedOperation.m */; };
+		45FC40431565F7750020A12B /* NSArray+FilteredKeys.m in Sources */ = {isa = PBXBuildFile; fileRef = 45FC40421565F7750020A12B /* NSArray+FilteredKeys.m */; };
+		45FC40461565F9020020A12B /* NSSet+FilteredKeys.m in Sources */ = {isa = PBXBuildFile; fileRef = 45FC40451565F9010020A12B /* NSSet+FilteredKeys.m */; };
 		45FC40DB1566D2D80020A12B /* ServiceWrappedArgs.m in Sources */ = {isa = PBXBuildFile; fileRef = 45FC40DA1566D2D80020A12B /* ServiceWrappedArgs.m */; };
 		4B1908C20A4CBF0B00052798 /* GPGServices.m in Sources */ = {isa = PBXBuildFile; fileRef = 4B1908C00A4CBF0B00052798 /* GPGServices.m */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
@@ -160,6 +162,11 @@
 		45DD3DDF15657C4900C9A4C1 /* ServiceWrappedOperation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ServiceWrappedOperation.h; path = Source/ServiceWrappedOperation.h; sourceTree = "<group>"; };
 		45DD3DE015657C4900C9A4C1 /* ServiceWrappedOperation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ServiceWrappedOperation.m; path = Source/ServiceWrappedOperation.m; sourceTree = "<group>"; };
 		45DD3DF315657EEE00C9A4C1 /* ServiceWorkerDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ServiceWorkerDelegate.h; path = Source/ServiceWorkerDelegate.h; sourceTree = "<group>"; };
+		45FC40401565F4D40020A12B /* KeyValidator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = KeyValidator.h; path = Source/KeyValidator.h; sourceTree = "<group>"; };
+		45FC40411565F7750020A12B /* NSArray+FilteredKeys.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSArray+FilteredKeys.h"; path = "Source/NSArray+FilteredKeys.h"; sourceTree = "<group>"; };
+		45FC40421565F7750020A12B /* NSArray+FilteredKeys.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSArray+FilteredKeys.m"; path = "Source/NSArray+FilteredKeys.m"; sourceTree = "<group>"; };
+		45FC40441565F9010020A12B /* NSSet+FilteredKeys.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSSet+FilteredKeys.h"; path = "Source/NSSet+FilteredKeys.h"; sourceTree = "<group>"; };
+		45FC40451565F9010020A12B /* NSSet+FilteredKeys.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSSet+FilteredKeys.m"; path = "Source/NSSet+FilteredKeys.m"; sourceTree = "<group>"; };
 		45FC40D91566D2D80020A12B /* ServiceWrappedArgs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ServiceWrappedArgs.h; path = Source/ServiceWrappedArgs.h; sourceTree = "<group>"; };
 		45FC40DA1566D2D80020A12B /* ServiceWrappedArgs.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ServiceWrappedArgs.m; path = Source/ServiceWrappedArgs.m; sourceTree = "<group>"; };
 		4B1908BF0A4CBF0B00052798 /* GPGServices.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GPGServices.h; path = Source/GPGServices.h; sourceTree = "<group>"; };
@@ -215,6 +222,7 @@
 				8E1BC3D6134B977500C1BFD6 /* UI Classes */,
 				4B1908BF0A4CBF0B00052798 /* GPGServices.h */,
 				4B1908C00A4CBF0B00052798 /* GPGServices.m */,
+				45FC40401565F4D40020A12B /* KeyValidator.h */,
 				8EDC40F6133F6C5500D0A101 /* ZipOperation.h */,
 				8EDC40F7133F6C5500D0A101 /* ZipOperation.m */,
 				8EE899891348B92B004A3266 /* NSPredicate+negate.h */,
@@ -354,6 +362,10 @@
 			children = (
 				45C2B9E81565DD6600B3571A /* NSAlert+ThreadSafety.h */,
 				45C2B9E91565DD6600B3571A /* NSAlert+ThreadSafety.m */,
+				45FC40411565F7750020A12B /* NSArray+FilteredKeys.h */,
+				45FC40421565F7750020A12B /* NSArray+FilteredKeys.m */,
+				45FC40441565F9010020A12B /* NSSet+FilteredKeys.h */,
+				45FC40451565F9010020A12B /* NSSet+FilteredKeys.m */,
 			);
 			name = Categories;
 			sourceTree = "<group>";
@@ -559,6 +571,8 @@
 				45DD3DE115657C4900C9A4C1 /* ServiceWrappedOperation.m in Sources */,
 				45C2B9E31565AEC300B3571A /* WorkerProgressViewItem.m in Sources */,
 				45C2B9EA1565DD6600B3571A /* NSAlert+ThreadSafety.m in Sources */,
+				45FC40431565F7750020A12B /* NSArray+FilteredKeys.m in Sources */,
+				45FC40461565F9020020A12B /* NSSet+FilteredKeys.m in Sources */,
 				45FC40DB1566D2D80020A12B /* ServiceWrappedArgs.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

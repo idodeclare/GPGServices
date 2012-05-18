@@ -27,10 +27,15 @@
 static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
 
 @interface GPGServices ()
+- (BOOL)isDirectory:(NSString *)file;
 - (void)removeWorker:(id)worker;
 - (void)displayOperationFinishedNotificationWithTitleOnMain:(NSArray *)args;
 - (void)displayOperationFailedNotificationWithTitleOnMain:(NSArray *)args;
 - (void)displaySignatureVerificationForSigOnMain:(GPGSignature*)sig;
+
+- (NSData *)dataForOneFile:(NSArray *)files;   // take lastObject
+- (NSData *)dataForDirectory:(NSArray *)files; // take lastObject
+- (NSData *)dataForFiles:(NSArray *)files;
 
 // expected count = 1; quote lastPathComponent
 - (NSString *)quoteOneFilesName:(NSArray *)files;
@@ -159,51 +164,50 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
 #pragma mark -
 #pragma mark Validators
 
+BOOL canEncryptFunction(GPGKey *key) {
+    if ([key canAnyEncrypt] && key.status < GPGKeyStatus_Invalid)
+        return YES;
+    return NO;
+}
+
 + (KeyValidatorT)canEncryptValidator {
-    KeyValidatorT block = ^(GPGKey* key) {
-        if ([key canAnyEncrypt] && key.status < GPGKeyStatus_Invalid)
-            return YES;
-        return NO;
-    };
-    
-    return [[block copy] autorelease];
+    return &canEncryptFunction;
+}
+
+BOOL canSignFunction(GPGKey *key) {
+    if ([key canAnySign] && key.status < GPGKeyStatus_Invalid)
+        return YES;
+    return NO;
 }
 
 + (KeyValidatorT)canSignValidator {
-    KeyValidatorT block = ^(GPGKey* key) {
-        if ([key canAnySign] && key.status < GPGKeyStatus_Invalid)
-            return YES;
-        return NO;
-    };
+    return &canSignFunction;
+}
+
+BOOL isActiveFunction(GPGKey *key) {
+    // Secret keys are never marked as revoked! Use public key
+    key = [key primaryKey];
+
+    if (![key expired] && 
+        ![key revoked] && 
+        ![key invalid] && 
+        ![key disabled]) {
+        return YES;
+    }
     
-    return [[block copy] autorelease];
+    for (GPGSubkey *aSubkey in [key subkeys]) {
+        if (![aSubkey expired] && 
+            ![aSubkey revoked] && 
+            ![aSubkey invalid] && 
+            ![aSubkey disabled]) {
+            return YES;
+        }
+    }
+    return NO;
 }
 
 + (KeyValidatorT)isActiveValidator {
-    KeyValidatorT block = ^(GPGKey* key) {
-        
-        // Secret keys are never marked as revoked! Use public key
-        key = [key primaryKey];
-
-        if (![key expired] && 
-            ![key revoked] && 
-            ![key invalid] && 
-            ![key disabled]) {
-            return YES;
-        }
-        
-        for (GPGSubkey *aSubkey in [key subkeys]) {
-            if (![aSubkey expired] && 
-                ![aSubkey revoked] && 
-                ![aSubkey invalid] && 
-                ![aSubkey disabled]) {
-                return YES;
-            }
-        }
-        return NO;
-    };
-    
-    return [[block copy] autorelease];
+    return &isActiveFunction;
 }
 
 #pragma mark -
@@ -587,10 +591,10 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
 }
 
 - (NSNumber*)sizeOfFiles:(NSArray*)files {
-    __block unsigned long long size = 0;
+    unsigned long long size = 0;
     
     NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
-    [files enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+    for (id obj in files) {
         NSString* file = (NSString*)obj;
         BOOL isDirectory = NO;
         BOOL exists = [fmgr fileExistsAtPath:file isDirectory:&isDirectory];
@@ -598,7 +602,7 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
             size += [[self folderSize:file] unsignedLongLongValue];
         else if(exists) 
             size += [self sizeOfFile:file];
-        }];
+    }
     
     return [NSNumber numberWithUnsignedLongLong:size];
 }
@@ -613,7 +617,7 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
 
         NSData* dataToSign = nil;
 
-        if([[self isDirectoryPredicate] evaluateWithObject:file]) {
+        if([self isDirectory:file]) {
             ZipOperation* zipOperation = [[[ZipOperation alloc] init] autorelease];
             zipOperation.filePath = file;
             [zipOperation start];
@@ -798,8 +802,7 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
     
     NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
     
-    typedef NSData*(^DataProvider)();
-    DataProvider dataProvider = nil;
+    SEL dataProvider = nil;
     
     if(files.count == 1) {
         NSString* file = [files objectAtIndex:0];
@@ -814,42 +817,25 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
             NSString* filename = [NSString stringWithFormat:@"%@.zip.gpg", [file lastPathComponent]];
             megabytes = [[self folderSize:file] unsignedLongLongValue] / kBytesInMB;
             destination = [[file stringByDeletingLastPathComponent] stringByAppendingPathComponent:filename];
-            dataProvider = ^{
-                ZipOperation* operation = [[[ZipOperation alloc] init] autorelease];
-                operation.filePath = file;
-                operation.delegate = self;
-                [operation start];
-                
-                return operation.zipData;
-            };
+            dataProvider = @selector(dataForDirectory:);
         } else {
             NSNumber* fileSize = [self sizeOfFiles:[NSArray arrayWithObject:file]];
             megabytes = [fileSize unsignedLongLongValue] / kBytesInMB;
             destination = [file stringByAppendingFormat:@".%@", fileExtension];
-            dataProvider = ^{
-                return (NSData*)[NSData dataWithContentsOfFile:file];
-            };
+            dataProvider = @selector(dataForOneFile:);
         }  
     } else if(files.count > 1) {
         megabytes = [[self sizeOfFiles:files] unsignedLongLongValue] / kBytesInMB;
         destination = [[[files objectAtIndex:0] stringByDeletingLastPathComponent] 
                        stringByAppendingPathComponent:@"Archive.zip.gpg"];
-        dataProvider = ^{
-            ZipOperation* operation = [[[ZipOperation alloc] init] autorelease];
-            operation.files = files;
-            operation.delegate = self;
-            [operation start];
-            
-            return operation.zipData;
-        };
+        dataProvider = @selector(dataForFiles:);
     }
     
     //Check if directory is writable and append i+1 if file already exists at destination
     destination = [self normalizedAndUniquifiedPathFromPath:destination];
     
     GPGDebugLog(@"destination: %@", destination);
-    GPGDebugLog(@"fileSize: %@Mb", [NSNumberFormatter localizedStringFromNumber:[NSNumber numberWithDouble:megabytes]
-                                                              numberStyle:NSNumberFormatterDecimalStyle]);        
+    GPGDebugLog(@"fileSize: %@Mb", [NSNumber numberWithDouble:megabytes]);
     
     if(megabytes > SIZE_WARNING_LEVEL_IN_MB) {
         int ret = [[NSAlert alertWithMessageText:@"Large File(s)"
@@ -875,7 +861,7 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
     ctx.useArmor = useASCII && [destination rangeOfString:@".asc"].location != NSNotFound;
     NSData* gpgData = nil;
     if(dataProvider != nil)
-        gpgData = [[[NSData alloc] initWithData:dataProvider()] autorelease];
+        gpgData = [self performSelector:dataProvider withObject:files];
 
     NSData* encrypted = nil;
     if(mode == GPGEncryptSign && privateKey != nil)
@@ -911,6 +897,28 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
     }
     [encrypted writeToFile:destination atomically:YES];
     [self displayOperationFinishedNotificationWithTitle:@"Encryption finished." message:[destination lastPathComponent]];
+}
+
+- (NSData *)dataForDirectory:(NSArray *)files {
+    ZipOperation* operation = [[[ZipOperation alloc] init] autorelease];
+    operation.filePath = [files lastObject];
+    operation.delegate = self;
+    [operation start];
+    
+    return operation.zipData;
+}
+
+- (NSData *)dataForOneFile:(NSArray *)files {
+    return (NSData*)[NSData dataWithContentsOfFile:[files lastObject]];
+}
+
+- (NSData *)dataForFiles:(NSArray *)files {
+    ZipOperation* operation = [[[ZipOperation alloc] init] autorelease];
+    operation.files = files;
+    operation.delegate = self;
+    [operation start];
+    
+    return operation.zipData;
 }
 
 - (void)decryptFiles:(NSArray *)files
@@ -1146,7 +1154,7 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
         if (wrappedArgs.worker.amCanceling)
             return;
 
-        if([[self isDirectoryPredicate] evaluateWithObject:file] == YES) {
+        if([self isDirectory:file] == YES) {
             if(files.count == 1 || [GrowlApplicationBridge isGrowlRunning]) //This is in a loop, so only display Growl...
                 [self displayOperationFailedNotificationWithTitle:@"Can't import keys from directory"
                                                           message:[file lastPathComponent]];
@@ -1223,23 +1231,13 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
         [_inProgressCtlr.window orderOut:nil];
 }
      
-#pragma mark - NSPredicates for filtering file arrays
+#pragma mark - Predicates for filtering file arrays
 
-- (NSPredicate*)fileExistsPredicate {
+- (BOOL)isDirectory:(NSString *)file {
     NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
-    return [[[NSPredicate predicateWithBlock:^BOOL(id file, NSDictionary *bindings) {
-        return [file isKindOfClass:[NSString class]] && [fmgr fileExistsAtPath:file];
-    }] copy] autorelease];
-}
-
-- (NSPredicate*)isDirectoryPredicate {
-    NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
-    return [[[NSPredicate predicateWithBlock:^BOOL(id file, NSDictionary *bindings) {
-        BOOL isDirectory = NO;
-        return ([file isKindOfClass:[NSString class]] && 
-                [fmgr fileExistsAtPath:file isDirectory:&isDirectory] &&
-                isDirectory);
-    }] copy] autorelease];
+    BOOL isDirectory = NO;
+    return ([fmgr fileExistsAtPath:file isDirectory:&isDirectory] &&
+            isDirectory);
 }
 
 #pragma mark -
@@ -1316,27 +1314,16 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
     
 	if(newString!=nil)
 	{
-        [pboard clearContents];
-        NSMutableArray *pbitems = [NSMutableArray array];
-
         if ([pbtype isEqualToString:NSPasteboardTypeHTML]) {        
-            NSPasteboardItem *htmlItem = [[[NSPasteboardItem alloc] init] autorelease];
-            [htmlItem setString:[newString stringByReplacingOccurrencesOfString:@"\n" withString:@"<br>"] 
-                        forType:NSPasteboardTypeHTML];
-            [pbitems addObject:htmlItem];
+            NSString *hstring = [newString stringByReplacingOccurrencesOfString:@"\n" withString:@"<br>"]; 
+            [pboard setString:hstring forType:NSPasteboardTypeHTML];
         }
         else if ([pbtype isEqualToString:NSPasteboardTypeRTF]) {        
-            NSPasteboardItem *rtfItem = [[[NSPasteboardItem alloc] init] autorelease];
-            [rtfItem setString:newString forType:NSPasteboardTypeRTF];
-            [pbitems addObject:rtfItem];
+            [pboard setString:newString forType:NSPasteboardTypeRTF];
         }
         else {
-            NSPasteboardItem *stringItem = [[[NSPasteboardItem alloc] init] autorelease];
-            [stringItem setString:newString forType:NSPasteboardTypeString];            
-            [pbitems addObject:stringItem];
+            [pboard setString:newString forType:NSPasteboardTypeString];
         }
-
-        [pboard writeObjects:pbitems];
 	}
     
 	[self exitServiceRequest];
@@ -1436,8 +1423,8 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
     
     if(ext == nil)
         ext = @".gpg";
-    [savePanel setNameFieldStringValue:[[path lastPathComponent] 
-                                        stringByAppendingString:ext]];
+    if ([savePanel respondsToSelector:@selector(setNameFieldStringValue:)])
+        [savePanel setNameFieldStringValue:[[path lastPathComponent] stringByAppendingString:ext]];
     
     if([savePanel runModal] == NSFileHandlingPanelOKButton)
         return savePanel.URL;

@@ -19,8 +19,6 @@
 	NSArray* availableKeys;
 	NSArray* keysMatchingSearch;
     
-    NSPredicate* encryptPredicate;
-	
     NSMutableArray* selectedKeys;
 	
 	BOOL sign;

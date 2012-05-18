@@ -11,8 +11,7 @@
 #import "Libmacgpg/Libmacgpg.h"
 #import <Growl/Growl.h>
 #import "ServiceWorkerDelegate.h"
-
-typedef BOOL(^KeyValidatorT)(GPGKey* key);
+#import "KeyValidator.h"
 
 typedef enum {
     SignService, 
@@ -95,12 +94,6 @@ typedef enum {
 - (void)decryptFiles:(NSArray*)files; 
 - (void)verifyFiles:(NSArray*)files;
 - (void)importFiles:(NSArray*)files;
-
-#pragma mark NSPredicates for filtering file arrays
-
-- (NSPredicate*)fileExistsPredicate;
-- (NSPredicate*)isDirectoryPredicate;
-//- (NSPredicate*)isZipPredicate;
 
 #pragma mark -
 #pragma mark Service handling routines
