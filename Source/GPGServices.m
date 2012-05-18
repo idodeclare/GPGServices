@@ -1548,7 +1548,7 @@ BOOL isActiveFunction(GPGKey *key) {
 
 -(void)selfQuit:(NSTimer *)timer
 {
-    if ([[_inProgressCtlr.collectionView content] count] < 1) {
+    if ([_inProgressCtlr.serviceWorkerArray count] < 1) {
         [self cancelTerminateTimer];
         [NSApp terminate:self];
     }
