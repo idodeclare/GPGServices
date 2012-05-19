@@ -14,12 +14,6 @@
 
 @end
 
-@interface KeyChooserWindowController ()
-
-- (void)runModalOnMain:(NSMutableArray *)resHolder;
-
-@end
-
 @implementation KeyChooserWindowController
 
 @synthesize dataSource;
