@@ -1099,12 +1099,15 @@ BOOL isActiveFunction(GPGKey *key) {
             return;
         
         //Do the file stuff here to be able to check if file is already in verification
-        NSString* signatureFile = serviceFile;
-        NSString* signedFile = [FileVerificationController searchFileForSignatureFile:signatureFile];
-        if(signedFile == nil) {
-            NSString* tmp = [FileVerificationController searchSignatureFileForFile:signatureFile];
-            signedFile = signatureFile;
-            signatureFile = tmp;
+        NSString* signedFile = serviceFile;
+        NSString* signatureFile = [FileVerificationController searchSignatureFileForFile:signedFile];
+        if (signatureFile == nil) {
+            signatureFile = serviceFile;
+            signedFile = [FileVerificationController searchFileForSignatureFile:signatureFile];
+        }
+        if (signedFile == nil) {
+            signedFile = serviceFile;
+            signatureFile = nil;
         }
         
         if(signatureFile != nil) {
