@@ -511,7 +511,10 @@ BOOL isActiveFunction(GPGKey *key) {
             GPGSignature* sig = [sigs objectAtIndex:0];
             GPGErrorCode status = sig.status;
             GPGDebugLog(@"sig.status: %i", status);
-            if([sig status] == GPGErrorNoError) {
+            if ([GrowlApplicationBridge isGrowlRunning]) {
+                [self growlVerificationResultsFor:NSLocalizedString(@"Selection", nil) signatures:sigs];
+            }
+            else if([sig status] == GPGErrorNoError) {
                 [self displaySignatureVerificationForSig:sig];
             } else {
                 NSString* errorMessage = nil;
@@ -1560,6 +1563,8 @@ BOOL isActiveFunction(GPGKey *key) {
     
 	if(newString!=nil)
 	{
+        if ([pboard respondsToSelector:@selector(clearContents)])
+            [pboard clearContents];
         if ([pbtype isEqualToString:NSPasteboardTypeHTML]) {        
             NSString *hstring = [newString stringByReplacingOccurrencesOfString:@"\n" withString:@"<br>"]; 
             [pboard setString:hstring forType:NSPasteboardTypeHTML];
