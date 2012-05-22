@@ -719,6 +719,7 @@ BOOL isActiveFunction(GPGKey *key) {
 
         if ([output length]) {
             [output close];
+            [tempFile closeFile];
             
             NSString* sigFile = [file stringByAppendingPathExtension:@"sig"];
             sigFile = [self normalizedAndUniquifiedPathFromPath:sigFile];
@@ -987,6 +988,7 @@ BOOL isActiveFunction(GPGKey *key) {
     GPGDebugLog(@"destination: %@", destination);
 
     [output close];
+    [tempFile closeFile];
     error = nil;
     [[NSFileManager defaultManager] moveItemAtPath:tempFile.fileName toPath:destination error:&error];
     if (error) {
@@ -1095,6 +1097,7 @@ BOOL isActiveFunction(GPGKey *key) {
                 
                 if ([output length]) {
                     [output close];
+                    [tempFile closeFile];
 
                     error = nil;
                     NSString* outputFile = [self normalizedAndUniquifiedPathFromPath:[file stringByDeletingPathExtension]];
