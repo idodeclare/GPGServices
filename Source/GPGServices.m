@@ -28,6 +28,8 @@
 
 #define SIZE_WARNING_LEVEL_IN_MB 10
 static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
+static NSString * const tempTemplate = @"_gpg(XXX).tmp";
+static NSUInteger const suffixLen = 5;
 
 @interface GPGServices ()
 - (BOOL)isDirectory:(NSString *)file;
@@ -133,13 +135,9 @@ static const float kBytesInMB = 1.e6; // Apple now uses this vs 2^20
                                                   message:[ex description]];
         return;
 	}
-    
-    [[NSAlert alertWithMessageText:NSLocalizedString(@"Import result", nil)
-                     defaultButton:nil
-                   alternateButton:nil
-                       otherButton:nil
-         informativeTextWithFormat:importText]
-     runModal];
+
+    [self displayOperationFinishedNotificationWithTitle:NSLocalizedString(@"Import result", nil) 
+                                                message:importText];
 }
 
 - (void)importKey:(NSString *)inputString {
@@ -287,14 +285,10 @@ BOOL isActiveFunction(GPGKey *key) {
         NSData* keyData = [ctx exportKeys:[NSArray arrayWithObject:selectedPrivateKey] allowSecret:NO fullExport:NO];
         
         if(keyData == nil) {
-            [[NSAlert alertWithMessageText:NSLocalizedString(@"Export failed", nil) 
-                             defaultButton:nil
-                           alternateButton:nil
-                               otherButton:nil
-                 informativeTextWithFormat:NSLocalizedString(@"Could not export key %@", @"arg:shortKeyID"), 
-              [selectedPrivateKey shortKeyID]] 
-             runModal];
-            
+            NSString *msg = [NSString stringWithFormat:NSLocalizedString(@"Could not export key %@", @"arg:shortKeyID"), 
+                             [selectedPrivateKey shortKeyID]];
+            [self displayOperationFailedNotificationWithTitle:NSLocalizedString(@"Export failed", nil) 
+                                                      message:msg];            
             return nil;
         } else {
             return [[[NSString alloc] initWithData:keyData 
@@ -482,8 +476,10 @@ BOOL isActiveFunction(GPGKey *key) {
         }
          */
         NSString* errorMessage = [[[localException userInfo] valueForKey:@"gpgTask"] errText];
-        if(errorMessage != nil)
-            [self displayMessageWindowWithTitleText:NSLocalizedString(@"Signing failed", nil) bodyText:errorMessage];
+        if(errorMessage != nil) {
+            [self displayOperationFailedNotificationWithTitle:NSLocalizedString(@"Signing failed", nil) 
+                                                      message:errorMessage];
+        }
         
         return nil;
 	}
@@ -699,8 +695,6 @@ BOOL isActiveFunction(GPGKey *key) {
         }
         
         // write to a temporary location in the target directory
-        static NSString * const tempTemplate = @"_gpgXXX.sig";
-        static NSUInteger const suffixLen = 4;
         NSError *error = nil;
         GPGTempFile *tempFile = [GPGTempFile tempFileForTemplate:
                                  [file stringByAppendingString:tempTemplate]
@@ -943,8 +937,6 @@ BOOL isActiveFunction(GPGKey *key) {
         gpgData = [self performSelector:dataProvider withObject:files];
 
     // write to a temporary location in the target directory
-    static NSString * const tempTemplate = @"_gpgXXX.gpg";
-    static NSUInteger const suffixLen = 4;
     NSError *error = nil;
     GPGTempFile *tempFile = [GPGTempFile tempFileForTemplate:
                              [destination stringByAppendingString:tempTemplate]
@@ -1075,8 +1067,6 @@ BOOL isActiveFunction(GPGKey *key) {
                 GPGDebugLog(@"inputData.size: %llu", [input length]);
 
                 // write to a temporary location in the target directory
-                static NSString * const tempTemplate = @"_gpgXXX.out";
-                static NSUInteger const suffixLen = 4;
                 NSError *error = nil;
                 GPGTempFile *tempFile = [GPGTempFile tempFileForTemplate:
                                          [file stringByAppendingString:tempTemplate]
@@ -1366,7 +1356,7 @@ BOOL isActiveFunction(GPGKey *key) {
         return;
 	}
     
-    [[NSAlert alertWithMessageText:NSLocalizedString(@"Import result:", nil)
+    [[NSAlert alertWithMessageText:NSLocalizedString(@"Import result", nil)
                      defaultButton:nil
                    alternateButton:nil
                        otherButton:nil
