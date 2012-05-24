@@ -72,6 +72,7 @@ static NSUInteger const suffixLen = 5;
 - (void)decryptFilesWrapped:(ServiceWrappedArgs *)wrappedArgs; 
 - (void)verifyFilesWrapped:(ServiceWrappedArgs *)wrappedArgs;
 - (void)importFilesWrapped:(ServiceWrappedArgs *)wrappedArgs;
+- (NSString*)detachedSignFileWrapped:(ServiceWrappedArgs *)wrappedArgs file:(NSString*)file withKeys:(NSArray*)keys;
 
 // If growl is active, produce one for a file's signatures
 - (void)growlVerificationResultsFor:(NSString *)file signatures:(NSArray *)signatures;
@@ -663,10 +664,11 @@ BOOL isActiveFunction(GPGKey *key) {
     return [NSNumber numberWithUnsignedLongLong:size];
 }
 
-- (NSString*)detachedSignFile:(NSString*)file withKeys:(NSArray*)keys {
+- (NSString*)detachedSignFileWrapped:(ServiceWrappedArgs *)wrappedArgs file:(NSString *)file withKeys:(NSArray *)keys {
     @try {
         GPGController* ctx = [GPGController gpgController];
         ctx.useArmor = YES;
+        wrappedArgs.worker.runningController = ctx;
 
         for(GPGKey* k in keys)
             [ctx addSignerKey:[k description]];
@@ -707,6 +709,10 @@ BOOL isActiveFunction(GPGKey *key) {
         
         GPGFileStream *output = [GPGFileStream fileStreamForWritingAtPath:tempFile.fileName];
         [ctx processTo:output data:dataToSign withEncryptSignMode:GPGDetachedSign recipients:nil hiddenRecipients:nil];
+
+        // check after an operation
+        if (wrappedArgs.worker.amCanceling)
+            return nil;
 
         if (ctx.error) 
 			@throw ctx.error;
@@ -793,7 +799,8 @@ BOOL isActiveFunction(GPGKey *key) {
             if (wrappedArgs.worker.amCanceling)
                 return;
 
-            NSString* sigFile = [self detachedSignFile:file withKeys:[NSArray arrayWithObject:chosenKey]];
+            NSString* sigFile = [self detachedSignFileWrapped:wrappedArgs 
+                                                         file:file withKeys:[NSArray arrayWithObject:chosenKey]];
 
             // check after an operation
             if (wrappedArgs.worker.amCanceling)
@@ -932,6 +939,8 @@ BOOL isActiveFunction(GPGKey *key) {
     GPGController* ctx = [GPGController gpgController];
     // Only use armor for single files. otherwise it doesn't make much sense.
     ctx.useArmor = useASCII && [destination rangeOfString:@".asc"].location != NSNotFound;
+    wrappedArgs.worker.runningController = ctx;
+
     GPGStream* gpgData = nil;
     if(dataProvider != nil)
         gpgData = [self performSelector:dataProvider withObject:files];
@@ -1044,7 +1053,7 @@ BOOL isActiveFunction(GPGKey *key) {
         return;
 
     GPGController* ctx = [GPGController gpgController];
-    // [ctx setPassphraseDelegate:self];
+    wrappedArgs.worker.runningController = ctx;
     
     NSFileManager* fmgr = [[[NSFileManager alloc] init] autorelease];
     
@@ -1246,6 +1255,8 @@ BOOL isActiveFunction(GPGKey *key) {
         if([fmgr fileExistsAtPath:signedFile] && [fmgr fileExistsAtPath:signatureFile]) {
             @try {
                 GPGController* ctx = [GPGController gpgController];
+                wrappedArgs.worker.runningController = ctx;
+
                 GPGFileStream *signatureInput = [GPGFileStream fileStreamForReadingAtPath:signatureFile];
                 GPGFileStream *originalInput = [GPGFileStream fileStreamForReadingAtPath:signedFile];
                 sigs = [ctx verifySignatureOf:signatureInput originalData:originalInput];
@@ -1263,6 +1274,8 @@ BOOL isActiveFunction(GPGKey *key) {
         if(sigs == nil || sigs.count == 0) {
             @try {
                 GPGController* ctx = [GPGController gpgController];
+                wrappedArgs.worker.runningController = ctx;
+
                 GPGFileStream *signedInput = [GPGFileStream fileStreamForReadingAtPath:serviceFile];
                 sigs = [ctx verifySignatureOf:signedInput originalData:nil];
 
@@ -1392,6 +1405,7 @@ BOOL isActiveFunction(GPGKey *key) {
         return;
 
 	GPGController* gpgc = [GPGController gpgController];
+	wrappedArgs.worker.runningController = gpgc;
 
     NSMutableArray *importedFiles = [NSMutableArray arrayWithCapacity:[files count]];
     NSMutableArray *errorMsgs = [NSMutableArray array];
